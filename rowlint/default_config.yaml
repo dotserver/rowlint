@@ -1,0 +1,32 @@
+# Empty configuration also runs all profiling checks. Rules are opt-in.
+checks:
+  null_values: true
+  data_types: true
+  unique_values: true
+  constant_columns: true
+  numeric_outliers: true
+  empty_or_nan_strings: true
+  duplicate_rows: true
+
+columns: {}
+# Example:
+# columns:
+#   id: {required: true, unique: true, nullable: false}
+#   age: {dtype: number, min: 0, max: 120, max_null_fraction: 0.05}
+#   department: {allowed_values: [HR, Engineering, Finance]}
+
+unique_keys: []
+# Example: [[customer_id, order_id]]
+unique_rows: false
+cross_column_checks: []
+# Examples:
+# - {left: start_date, op: le, right: end_date}
+# - {name: total_matches, left: total, op: eq, right: [quantity, unit_price],
+#    operation: multiply, tolerance: 0.01}
+
+report:
+  sample_limit: 5
+  whitespace_as_empty: true
+baseline:
+  max_null_increase: 0.05
+  max_unique_change: 0.2

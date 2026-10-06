@@ -1,0 +1,6 @@
+include README.md
+include LICENSE
+include rowlint/default_config.yaml
+include rowlint/py.typed
+recursive-include tests *.py *.yaml
+recursive-include scripts *.py

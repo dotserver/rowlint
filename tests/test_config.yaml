@@ -1,0 +1,7 @@
+checks:
+  null_values: false
+  data_types: true
+  unique_values: true
+  constant_columns: false
+  numeric_outliers: false
+  empty_or_nan_strings: false
