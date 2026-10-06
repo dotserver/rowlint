@@ -9,3 +9,9 @@ build/
 .venv
 venv/
 *.sqlite3
+*.ipynb
+.DS_Store
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
