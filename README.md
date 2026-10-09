@@ -8,16 +8,21 @@ Requires Python 3.11+ and pandas 2.2 or 3.x. All checks operate in memory.
 
 ## Install
 
-From a source checkout:
+Install from PyPI:
 
 ```bash
-python -m pip install .
-# Optional Parquet input or eager Polars DataFrames:
-python -m pip install '.[parquet]'
-python -m pip install '.[polars]'
+python -m pip install rowlint
 ```
 
-After publication, replace `.` with `rowlint` in these commands.
+Optional Parquet input or eager Polars DataFrames:
+
+```bash
+python -m pip install 'rowlint[parquet]'
+python -m pip install 'rowlint[polars]'
+```
+
+For installation from a source checkout, see the
+[contributor guide](https://github.com/dotserver/rowlint/blob/main/CONTRIBUTING.md).
 
 ## Python quick start
 
@@ -217,7 +222,7 @@ report = DataQualityChecker(pl.DataFrame({"id": [1, 1]})).validate(
 )
 ```
 
-Install `rowlint[polars]` after publication, or `.[polars]` from this checkout.
+Install the adapter with `python -m pip install 'rowlint[polars]'`.
 The adapter materializes an eager Polars frame as pandas; it does not run
 native Polars expressions or support LazyFrames. Samples use the converted
 frame's row indices. Dtypes are reported after conversion.
@@ -240,39 +245,9 @@ read profiling values under `metrics`. CLI output now defaults to text;
 select `--format md` for Markdown. Duplicate or nonstring column labels
 raise a clear error; rename them before validation.
 
-## Development and release
+## Contributing
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -e '.[dev,parquet,polars]'
-ruff check .
-ruff format --check .
-pytest --cov=rowlint
-python -m build
-python -m twine check --strict dist/*
-python scripts/smoke_install.py dist/*.whl dist/*.tar.gz
-```
-
-CI tests Python 3.11–3.14, the minimum pandas version, and pandas 2.x/3.x;
-it also checks lint, formatting, distribution metadata, and installation
-of both the wheel and source distribution in fresh environments. Optional
-backend tests run when their dependencies are installed.
-
-Before a release, update the version in `pyproject.toml`, run the checks
-above from a clean build directory, upload to TestPyPI, and verify the
-published installation before uploading the same artifacts to PyPI:
-
-```bash
-python -m twine upload --repository testpypi dist/*
-# After checking the TestPyPI installation:
-python -m twine upload dist/*
-```
-
-CI builds and checks packages; it does not publish automatically.
-
-Implementation modules separate configuration (`config.py`), vectorized
-checks (`checks.py`), execution (`checker.py`), baseline comparison
-(`baseline.py`), and rendering (`report.py`). No cleaning is performed.
-Reports contain aggregates and bounded index samples, not full data rows.
-Exact uniqueness and IQR profiling require the complete in-memory dataset.
+See the [contributor guide](https://github.com/dotserver/rowlint/blob/main/CONTRIBUTING.md)
+for development setup, tests, and contribution guidance. Maintainers can find
+build and publishing instructions in the
+[release guide](https://github.com/dotserver/rowlint/blob/main/RELEASING.md).

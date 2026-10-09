@@ -1,4 +1,6 @@
 include README.md
+include CONTRIBUTING.md
+include RELEASING.md
 include LICENSE
 include rowlint/default_config.yaml
 include rowlint/py.typed
