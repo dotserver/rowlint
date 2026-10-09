@@ -15,31 +15,42 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # pandas 2.2.0 needs NumPy 1.x; PyArrow 26 requires NumPy 2.x.
           - python: '3.11'
             pandas: 'pandas==2.2.0'
             numpy: 'numpy<2'
+            pyarrow: 'pyarrow>=14,<26'
           - python: '3.11'
             pandas: 'pandas>=2.2,<3'
-            numpy: 'numpy>=1.26'
+            numpy: 'numpy>=2'
+            pyarrow: 'pyarrow>=14'
           - python: '3.11'
             pandas: 'pandas>=3,<4'
-            numpy: 'numpy>=1.26'
+            numpy: 'numpy>=2'
+            pyarrow: 'pyarrow>=14'
           - python: '3.12'
             pandas: 'pandas>=2.2,<4'
-            numpy: 'numpy>=1.26'
+            numpy: 'numpy>=2'
+            pyarrow: 'pyarrow>=14'
           - python: '3.13'
             pandas: 'pandas>=2.2,<4'
-            numpy: 'numpy>=1.26'
+            numpy: 'numpy>=2'
+            pyarrow: 'pyarrow>=14'
           - python: '3.14'
             pandas: 'pandas>=2.2,<4'
-            numpy: 'numpy>=1.26'
+            numpy: 'numpy>=2'
+            pyarrow: 'pyarrow>=14'
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
           cache: pip
-      - run: python -m pip install '.[dev,parquet,polars]' '${{ matrix.pandas }}' '${{ matrix.numpy }}'
+      - run: python -m pip install '.[dev,parquet,polars]' '${{ matrix.pandas }}' '${{ matrix.numpy }}' '${{ matrix.pyarrow }}'
+      - name: Check installed dependencies
+        run: |
+          python -m pip check
+          python -c "from importlib.metadata import version; print({name: version(name) for name in ('pandas', 'numpy', 'pyarrow', 'polars')})"
       - run: python -m pytest --cov=rowlint
 
   package:

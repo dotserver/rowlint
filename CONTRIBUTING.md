@@ -44,7 +44,9 @@ checks. For changes to packaging or the README, also run the build and metadata
 checks in the [release guide](RELEASING.md#build-and-check-the-distributions).
 
 CI tests Python 3.11–3.14, the minimum supported pandas version, and pandas
-2.x/3.x. It also checks lint, formatting, distribution metadata, and installation
+2.x/3.x. The pandas 2.2.0 job uses NumPy 1.x and PyArrow below 26; the remaining
+jobs use NumPy 2.x and current PyArrow releases. It also checks lint, formatting,
+distribution metadata, and installation
 of both the wheel and source distribution in fresh environments. Optional
 backend tests run when their dependencies are installed. CI checks packages;
 maintainers publish releases separately.
