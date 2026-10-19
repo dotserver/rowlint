@@ -1,6 +1,7 @@
 """Serializable check results and dependency-free report renderers."""
 
 import json
+from collections import Counter
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
@@ -83,11 +84,50 @@ class Report:
     def has_errors(self) -> bool:
         return any(result.status == "error" for result in self.checks)
 
+    @property
+    def summary(self) -> dict[str, Any]:
+        """Count rule outcomes without double-counting rows failing several rules."""
+        counts = Counter(result.status for result in self.checks)
+        if not self.checks:
+            status = "not_run"
+        elif counts["error"]:
+            status = "error"
+        elif counts["fail"]:
+            status = "fail"
+        elif counts["pass"]:
+            status = "pass"
+        else:
+            status = "skipped"
+        return {
+            "mode": "validation" if self.checks else "profiling",
+            "status": status,
+            "total_checks": len(self.checks),
+            "passed_checks": counts["pass"],
+            "failed_checks": counts["fail"],
+            "skipped_checks": counts["skip"],
+            "error_checks": counts["error"],
+        }
+
+    def _summary_lines(self) -> list[str]:
+        summary = self.summary
+        status = summary["status"].upper()
+        if status == "NOT_RUN":
+            status = "PROFILING ONLY (validation not run)"
+        return [
+            f"Status: {status}",
+            f"Rows: {self.metadata.get('row_count', '?')}; "
+            f"columns: {self.metadata.get('column_count', '?')}",
+            f"Checks: {summary['total_checks']} total; {summary['passed_checks']} passed; "
+            f"{summary['failed_checks']} failed; {summary['error_checks']} errors; "
+            f"{summary['skipped_checks']} skipped",
+        ]
+
     def to_dict(self) -> dict[str, Any]:
         return json_safe(
             {
                 "schema_version": 1,
                 "passed": self.passed,
+                "summary": self.summary,
                 "metadata": self.metadata,
                 "metrics": self.metrics,
                 "checks": [result.to_dict() for result in self.checks],
@@ -97,21 +137,18 @@ class Report:
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), indent=2, ensure_ascii=False, allow_nan=False) + "\n"
 
-    def to_terminal(self) -> str:
-        failures = sum(result.status == "fail" for result in self.checks)
-        errors = sum(result.status == "error" for result in self.checks)
-        lines = [
-            f"Data quality: {'PASS' if self.passed else 'FAIL'} "
-            f"({len(self.checks)} rules, {failures} failures, {errors} errors)",
-            f"Rows: {self.metadata.get('row_count', '?')}; "
-            f"columns: {self.metadata.get('column_count', '?')}",
-        ]
+    def to_terminal(self, *, concise: bool = False) -> str:
+        """Render the summary and checks; concise output retains failures and errors."""
+        lines = self._summary_lines()
         for result in self.checks:
+            if concise and result.status in {"pass", "skip"}:
+                continue
             column = f" [{result.column}]" if result.column else ""
             lines.append(f"{result.status.upper()} {result.check}{column}: {result.message}")
             if result.row_sample:
                 lines.append(f"  Row indices: {json_safe(result.row_sample)}")
-        lines.append("Profile: " + json.dumps(json_safe(self.metrics), ensure_ascii=False))
+        if not concise:
+            lines.append("Profile: " + json.dumps(json_safe(self.metrics), ensure_ascii=False))
         return "\n".join(lines) + "\n"
 
     def to_markdown(self) -> str:
@@ -121,10 +158,7 @@ class Report:
         lines = [
             "# 🧪 Data Quality Report",
             "",
-            f"**Status: {'PASS' if self.passed else 'FAIL'}**",
-            "",
-            f"Rows: {self.metadata.get('row_count', '?')} · "
-            f"Columns: {self.metadata.get('column_count', '?')}",
+            *[f"**{line}**" for line in self._summary_lines()],
             "",
             "| Check | Column | Status | Failed / evaluated | Message | Row indices |",
             "| --- | --- | --- | --- | --- | --- |",
@@ -169,6 +203,9 @@ class Report:
             f"<pre>{escape(json.dumps(json_safe(value), indent=2))}</pre>"
             for name, value in self.metrics.items()
         )
+        summary = "".join(
+            f"<p><strong>{escape(line)}</strong></p>" for line in self._summary_lines()
+        )
         return (
             '<!doctype html><html lang="en"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width, initial-scale=1">'
@@ -177,15 +214,13 @@ class Report:
             "table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;"
             "padding:.6rem;text-align:left}pre{white-space:pre-wrap;overflow-wrap:anywhere}"
             ".table{overflow:auto}</style></head><body><h1>Data Quality Report</h1>"
-            f"<p><strong>Status: {'PASS' if self.passed else 'FAIL'}</strong></p>"
-            f"<p>Rows: {escape(str(self.metadata.get('row_count', '?')))} · "
-            f"Columns: {escape(str(self.metadata.get('column_count', '?')))}</p>"
+            f"{summary}"
             '<div class="table"><table><thead><tr><th>Check</th><th>Column</th><th>Status</th>'
             "<th>Failed / evaluated</th><th>Message</th><th>Row indices</th></tr></thead>"
             f"<tbody>{''.join(rows)}</tbody></table></div>{metrics}</body></html>\n"
         )
 
-    def write(self, path: str | Path, format: str = "json") -> None:
+    def write(self, path: str | Path, format: str = "json", *, concise: bool = False) -> None:
         renderers = {
             "json": self.to_json,
             "md": self.to_markdown,
@@ -194,7 +229,10 @@ class Report:
         }
         if format not in renderers:
             raise ValueError(f"Unsupported report format: {format}")
-        Path(path).write_text(renderers[format](), encoding="utf-8")
+        if concise and format != "text":
+            raise ValueError("concise output is supported only for text reports")
+        content = self.to_terminal(concise=concise) if format == "text" else renderers[format]()
+        Path(path).write_text(content, encoding="utf-8")
 
     def compare_baseline(
         self,
