@@ -3,7 +3,7 @@
 This guide is for maintainers publishing a new package version. CI validates
 changes and builds packages; it does not publish automatically.
 
-The commands below use **0.1.1** as an example of a new patch release. Substitute
+The commands below use **0.2.0** as an example of a new feature release. Substitute
 the intended version everywhere, including the Git tag and installation checks.
 Use the same terminal session throughout so the temporary directory variables
 remain available. The shell examples are for macOS or Linux.
@@ -13,7 +13,9 @@ remain available. The shell examples are for macOS or Linux.
 1. Update `[project].version` in `pyproject.toml` on a release branch.
    `rowlint.__version__` reads installed package metadata, so the version is
    maintained in `pyproject.toml`.
-2. Update the README and prepare release notes describing changes and limitations.
+2. Update the README and `CHANGELOG.md`, and prepare release notes describing
+   changes and limitations. Replace the changelog's `Unreleased` label with the
+   release date before tagging.
    README changes appear on PyPI when a new distribution is built and uploaded.
 3. Reinstall the editable project to refresh its version metadata, then run the
    checks in [CONTRIBUTING.md](CONTRIBUTING.md#checks).
@@ -37,8 +39,8 @@ python -m rowlint --version
 Wait for CI on the merged commit to pass. Tag that commit and push the tag:
 
 ```bash
-git tag -a v0.1.1 -m "RowLint 0.1.1 release"
-git push origin v0.1.1
+git tag -a v0.2.0 -m "RowLint 0.2.0 release"
+git push origin v0.2.0
 ```
 
 Build the release from this clean, tagged commit. Keep existing release tags
@@ -54,6 +56,7 @@ rowlint_release_dist="$(mktemp -d)"
 python -m build --outdir "$rowlint_release_dist"
 python -m twine check --strict "$rowlint_release_dist"/*
 python scripts/smoke_install.py "$rowlint_release_dist"/*.whl "$rowlint_release_dist"/*.tar.gz
+python scripts/smoke_install.py --extras parquet,polars "$rowlint_release_dist"/*.whl "$rowlint_release_dist"/*.tar.gz
 ```
 
 The smoke script installs the wheel and source archive in separate fresh
@@ -82,8 +85,8 @@ PyPI first, then download RowLint specifically from TestPyPI:
 ```bash
 rowlint_test_dir="$(mktemp -d)"
 python -m venv "$rowlint_test_dir/venv"
-"$rowlint_test_dir/venv/bin/python" -m pip install --index-url https://pypi.org/simple/ 'pandas>=2.2,<4' 'PyYAML>=6,<7'
-"$rowlint_test_dir/venv/bin/python" -m pip install --index-url https://test.pypi.org/simple/ --no-deps rowlint==0.1.1
+"$rowlint_test_dir/venv/bin/python" -m pip install --index-url https://pypi.org/simple/ 'pandas>=2.2.2,<4' 'PyYAML>=6,<7' 'numpy>=2' 'pyarrow>=16' 'polars>=1'
+"$rowlint_test_dir/venv/bin/python" -m pip install --index-url https://test.pypi.org/simple/ --no-deps 'rowlint[parquet,polars]==0.2.0'
 "$rowlint_test_dir/venv/bin/python" -m pip check
 cd "$rowlint_test_dir"
 "$rowlint_test_dir/venv/bin/rowlint" --version
@@ -91,7 +94,7 @@ cd "$rowlint_test_dir"
 cd "$rowlint_repo_dir"
 ```
 
-Confirm the version is `rowlint 0.1.1` and the sample dataset is profiled
+Confirm the version is `rowlint 0.2.0` and the sample dataset is profiled
 successfully. Running outside the checkout ensures the installed package is
 being used. Each command above is a complete line; copy it without adding
 backslashes between arguments.
@@ -116,7 +119,7 @@ from PyPI in another fresh environment:
 ```bash
 rowlint_pypi_dir="$(mktemp -d)"
 python -m venv "$rowlint_pypi_dir/venv"
-"$rowlint_pypi_dir/venv/bin/python" -m pip install --index-url https://pypi.org/simple/ rowlint==0.1.1
+"$rowlint_pypi_dir/venv/bin/python" -m pip install --index-url https://pypi.org/simple/ 'rowlint[parquet,polars]==0.2.0'
 "$rowlint_pypi_dir/venv/bin/python" -m pip check
 cd "$rowlint_pypi_dir"
 "$rowlint_pypi_dir/venv/bin/rowlint" --version
@@ -127,7 +130,7 @@ cd "$rowlint_repo_dir"
 ## Create the GitHub release
 
 Create a release at [GitHub Releases](https://github.com/dotserver/rowlint/releases)
-using the existing `v0.1.1` tag. Include a short description of the changes,
+using the existing `v0.2.0` tag. Include a short description of the changes,
 installation instructions, relevant limitations, and a link to the PyPI page.
 Optionally attach the same wheel and source archive from
 `$rowlint_release_dist` as release assets.

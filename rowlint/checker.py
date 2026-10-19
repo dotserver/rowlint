@@ -11,6 +11,7 @@ from .checks import (
     dataset_metadata,
     evaluate_columns,
     evaluate_cross_columns,
+    evaluate_dataset,
     evaluate_unique_keys,
     mask_result,
     profile,
@@ -121,7 +122,8 @@ class DataQualityChecker:
             self.df, settings.checks, whitespace=settings.whitespace_as_empty, metadata=metadata
         )
         outcomes = (
-            evaluate_columns(self.df, settings)
+            evaluate_dataset(self.df, settings)
+            + evaluate_columns(self.df, settings)
             + evaluate_unique_keys(self.df, settings)
             + evaluate_cross_columns(self.df, settings)
         )

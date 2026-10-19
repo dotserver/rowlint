@@ -43,13 +43,17 @@ To format changed Python files, run `python -m ruff format .` and repeat the
 checks. For changes to packaging or the README, also run the build and metadata
 checks in the [release guide](RELEASING.md#build-and-check-the-distributions).
 
-CI tests Python 3.11–3.14, the minimum supported pandas version, and pandas
-2.x/3.x. The pandas 2.2.0 job uses NumPy 1.x and PyArrow below 26; the remaining
-jobs use NumPy 2.x and current PyArrow releases. It also checks lint, formatting,
-distribution metadata, and installation
-of both the wheel and source distribution in fresh environments. Optional
-backend tests run when their dependencies are installed. CI checks packages;
-maintainers publish releases separately.
+CI tests Python 3.11–3.14, pandas 2.x/3.x, and the minimum optional-backend
+combination (pandas 2.2.2, NumPy 2.0, and PyArrow 16). A separate base-only job
+covers pandas 2.2.0 with NumPy 1.x. Optional-backend tests are skipped only when
+their dependencies are absent. CI also checks lint, formatting, distribution
+metadata, and installation of the wheel and source distribution both with and
+without optional extras in fresh environments. Maintainers publish separately.
+
+The `parquet` and `polars` extras declare pandas 2.2.2+, NumPy 2+, and PyArrow
+16+ so pip resolves compatible versions. See the upstream compatibility notes
+for [pandas 2.2.2](https://pandas.pydata.org/docs/whatsnew/v2.2.2.html#pandas-2-2-2-is-now-compatible-with-numpy-2-0)
+and [Arrow 16](https://arrow.apache.org/release/16.0.0.html).
 
 ## Project structure
 

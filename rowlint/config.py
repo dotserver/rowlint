@@ -67,6 +67,9 @@ class Config:
     max_null_increase: float = 0.05
     max_unique_change: float = 0.2
     unique_rows: bool = False
+    min_rows: int | None = None
+    max_rows: int | None = None
+    allow_extra_columns: bool = True
 
 
 def parse_config(raw: Mapping | None = None) -> Config:
@@ -87,6 +90,8 @@ def parse_config(raw: Mapping | None = None) -> Config:
             "report",
             "baseline",
             "unique_rows",
+            "dataset",
+            "schema",
         },
         "configuration",
     )
@@ -99,6 +104,20 @@ def parse_config(raw: Mapping | None = None) -> Config:
         if checks
         else DEFAULT_CHECKS.copy()
     )
+
+    dataset = _mapping(data.get("dataset", {}), "dataset")
+    _keys(dataset, {"min_rows", "max_rows"}, "dataset")
+    for name, limit in dataset.items():
+        if type(limit) is not int or limit < 0:
+            raise ConfigError(f"dataset.{name} must be a nonnegative integer")
+    min_rows, max_rows = dataset.get("min_rows"), dataset.get("max_rows")
+    if min_rows is not None and max_rows is not None and min_rows > max_rows:
+        raise ConfigError("dataset.min_rows cannot exceed max_rows")
+
+    schema = _mapping(data.get("schema", {}), "schema")
+    _keys(schema, {"allow_extra_columns"}, "schema")
+    allow_extra_columns = schema.get("allow_extra_columns", True)
+    _bool(allow_extra_columns, "schema.allow_extra_columns")
 
     columns = _mapping(data.get("columns", {}), "columns")
     for column, raw_rules in columns.items():
@@ -224,15 +243,18 @@ def parse_config(raw: Mapping | None = None) -> Config:
     unique_rows = data.get("unique_rows", False)
     _bool(unique_rows, "unique_rows")
     return Config(
-        checks,
-        columns,
-        unique_keys,
-        normalized,
-        sample_limit,
-        whitespace,
-        null_change,
-        unique_change,
-        unique_rows,
+        checks=checks,
+        columns=columns,
+        unique_keys=unique_keys,
+        cross_column_checks=normalized,
+        sample_limit=sample_limit,
+        whitespace_as_empty=whitespace,
+        max_null_increase=null_change,
+        max_unique_change=unique_change,
+        unique_rows=unique_rows,
+        min_rows=min_rows,
+        max_rows=max_rows,
+        allow_extra_columns=allow_extra_columns,
     )
 
 

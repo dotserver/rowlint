@@ -124,6 +124,39 @@ def _dtype_matches(series: pd.Series, expected: str) -> bool:
     return series.dtype == pd.api.types.pandas_dtype(expected)
 
 
+def evaluate_dataset(df: pd.DataFrame, config: Config) -> list[CheckResult]:
+    """Evaluate dataset size and schema constraints without inventing row failures."""
+    results = []
+    for name, limit, comparison, description in (
+        ("min_rows", config.min_rows, operator.ge, "at least"),
+        ("max_rows", config.max_rows, operator.le, "at most"),
+    ):
+        if limit is not None:
+            results.append(
+                CheckResult(
+                    f"dataset.{name}",
+                    status="pass" if comparison(len(df), limit) else "fail",
+                    message=f"Expected {description} {limit} rows; found {len(df)}",
+                )
+            )
+    if not config.allow_extra_columns:
+        for column in df:
+            if column not in config.columns:
+                results.append(
+                    CheckResult(
+                        "schema.unexpected_column",
+                        column=column,
+                        status="fail",
+                        message="Column is not declared in columns",
+                    )
+                )
+        if not any(result.check == "schema.unexpected_column" for result in results):
+            results.append(
+                CheckResult("schema.extra_columns", message="All columns are declared in columns")
+            )
+    return results
+
+
 def evaluate_columns(df: pd.DataFrame, config: Config) -> list[CheckResult]:
     results = []
     for col, rules in config.columns.items():

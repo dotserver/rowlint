@@ -21,6 +21,10 @@ python -m pip install 'rowlint[parquet]'
 python -m pip install 'rowlint[polars]'
 ```
 
+The optional extras require pandas 2.2.2+, NumPy 2+, and PyArrow 16+. Pip installs
+or upgrades these dependencies together. The base installation continues to
+support pandas 2.2.0 and NumPy 1.x.
+
 For installation from a source checkout, see the
 [contributor guide](https://github.com/dotserver/rowlint/blob/main/CONTRIBUTING.md).
 
@@ -33,6 +37,8 @@ from rowlint import DataQualityChecker
 df = pd.DataFrame({"id": [1, 1, 3], "age": [25, 150, None]})
 report = DataQualityChecker(df).validate(
     {
+        "dataset": {"min_rows": 1},
+        "schema": {"allow_extra_columns": False},
         "columns": {
             "id": {"unique": True, "nullable": False},
             "age": {"dtype": "number", "min": 0, "max": 120, "max_null_fraction": 0.05},
@@ -41,7 +47,7 @@ report = DataQualityChecker(df).validate(
 )
 
 print(report.passed)  # False
-print(report.to_terminal())
+print(report.to_terminal(concise=True))
 report.write("report.json")
 report.write("report.md", "md")
 report.write("report.html", "html")
@@ -57,15 +63,31 @@ An example uniqueness result:
 | --- | --- | --- | --- | --- |
 | unique | id | fail | 2 / 3 | [0, 1] |
 
-`report.passed` is false if any rule fails or errors. A report with profiling
-only has no validation rules and passes; profiling findings such as outlier
-counts are descriptive, not automatic failures.
+`report.passed` is false if any rule fails or errors. Profiling-only runs keep
+`passed=True` and exit code 0, while every report explicitly labels them
+**PROFILING ONLY (validation not run)**. Profiling findings such as outlier
+counts remain descriptive.
+
+`report.summary` contains the mode (`profiling` or `validation`), status, and
+`total_checks`, `passed_checks`, `failed_checks`, `skipped_checks`, and
+`error_checks`. Status is `not_run`, `pass`, `fail`, `skipped`, or `error`;
+errors take precedence over failed rules. A run with only skipped rules is
+labelled `SKIPPED`. Counts refer to checks, since one row can fail multiple
+rules. Dataset and schema checks have zero row counts and no row samples.
+
+JSON reports include the same `summary` object alongside the existing fields;
+`schema_version` remains 1. Terminal, Markdown, and HTML reports show the same
+summary. Use `report.to_terminal(concise=True)` or
+`report.write("report.txt", "text", concise=True)` for a summary plus failing
+checks and errors, with their bounded index samples.
 
 ## CLI quick start
 
 ```bash
 rowlint --init-config
+rowlint --check-config rowlint_config.yaml
 rowlint data.csv --config rowlint_config.yaml
+rowlint data.csv --config rowlint_config.yaml --concise
 rowlint data.csv --config rowlint_config.yaml --format json --output report.json
 rowlint data.csv --config rowlint_config.yaml --format html --output report.html
 python -m rowlint data.csv --format md
@@ -73,11 +95,22 @@ python -m rowlint data.csv --format md
 
 Exit codes: **0** for success, **1** for failed validation, **2** for invalid
 configuration, arguments, input/output errors, or custom-check errors.
+`--concise` applies only to text reports and omits passing/skipped check details
+and profiling metrics. It also works with `--output report.txt`; combining it
+with another format or `--init-config` is an argument error.
+
 Errors go to stderr. With no `--output`, stdout contains only the requested
 report, so JSON output can be piped directly into another tool.
 
 `--init-config` defaults to `rowlint_config.yaml`. Use `--config rules.yaml`
 to choose a destination and `--force` to replace an existing template.
+
+Use `rowlint --check-config rules.yaml` to validate YAML syntax and rule settings
+without providing or loading a dataset. It prints a confirmation and exits 0 for
+valid configuration; malformed rules, YAML, or unreadable files exit 2. This
+checks configuration structure and values; column existence and dataset results
+are evaluated when data is supplied. The command cannot be combined with input,
+reporting, or configuration-initialization options.
 
 CSV parsing follows pandas conventions: empty fields and recognized missing
 tokens become nulls. Use `--dtype id=string` to preserve leading zeros;
@@ -98,6 +131,12 @@ checks:
   numeric_outliers: true
   empty_or_nan_strings: true
   duplicate_rows: true
+
+dataset:
+  min_rows: 1
+  max_rows: 1000000
+schema:
+  allow_extra_columns: true
 
 columns:
   id: {required: true, dtype: integer, nullable: false, unique: true}
@@ -129,6 +168,37 @@ Unknown keys, quoted boolean strings such as `"false"`, duplicate YAML keys,
 malformed regexes, and invalid values raise `ConfigError`. No Python
 expressions are evaluated from YAML.
 
+### Dataset size and schema rules
+
+`dataset.min_rows` and `dataset.max_rows` are inclusive, nonnegative integer
+limits. Omit either limit to leave it unrestricted. `min_rows` must not exceed
+`max_rows`; booleans and quoted numbers are rejected. No size limits are
+applied by default. For example, `min_rows: 1` rejects a CSV containing headers
+but no records. A completely empty CSV is still an input error.
+
+Set `schema.allow_extra_columns: false` to accept only columns declared in
+`columns`. Every unexpected column produces a separate
+`schema.unexpected_column` failure. When no extra columns exist, the report
+contains a passing `schema.extra_columns` check. This setting is independent of
+baseline comparisons and column order. Declared optional columns are accepted
+when present and can be absent; required-column rules still detect missing
+columns. With strict schema validation and `columns: {}`, only a frame with no
+columns is accepted.
+
+```yaml
+dataset:
+  min_rows: 1
+schema:
+  allow_extra_columns: false
+columns:
+  id: {dtype: integer, nullable: false}
+  note: {required: false}
+```
+
+A dataset with `id` and an unexpected `debug` column fails this schema. A
+dataset containing only `id` passes it, provided `id` has the required type
+and values. Dataset and schema rules run even when profiling is disabled.
+
 Defaults and selection:
 
 - No config, an empty YAML file, `{}`, and `checks: {}` all use the shipped
@@ -138,8 +208,8 @@ Defaults and selection:
 - Flat mappings such as `{null_values: true}` remain supported.
 - `columns` and other rules run independently of profiling selection.
 - Columns mentioned in rules are required by default. `required: false`
-  skips that column's rules when the column is absent. Unspecified extra
-  columns are accepted.
+  skips that column's rules when the column is absent. Extra columns are
+  accepted unless `schema.allow_extra_columns` is false.
 
 Rule semantics:
 
@@ -240,7 +310,7 @@ adds row duplication profiling.
 `check_unique()` returns distinct-value **counts**, not booleans.
 
 JSON exports now use a versioned envelope with `schema_version`, `passed`,
-`metadata`, `metrics`, and `checks`; consumers of the prototype's JSON should
+`metadata`, `metrics`, `checks`, and `summary`; consumers of the prototype's JSON should
 read profiling values under `metrics`. CLI output now defaults to text;
 select `--format md` for Markdown. Duplicate or nonstring column labels
 raise a clear error; rename them before validation.
@@ -251,3 +321,6 @@ See the [contributor guide](https://github.com/dotserver/rowlint/blob/main/CONTR
 for development setup, tests, and contribution guidance. Maintainers can find
 build and publishing instructions in the
 [release guide](https://github.com/dotserver/rowlint/blob/main/RELEASING.md).
+
+See the [changelog](https://github.com/dotserver/rowlint/blob/main/CHANGELOG.md)
+for release history and compatibility changes.

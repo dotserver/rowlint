@@ -18,8 +18,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--input", help="Alternative input path")
     parser.add_argument("--input-format", choices=["auto", "csv", "parquet"], default="auto")
     parser.add_argument("--config", help="YAML rules and profiling configuration")
+    parser.add_argument(
+        "--check-config", metavar="PATH", help="Validate YAML configuration without loading data"
+    )
     parser.add_argument("--output", help="Output report path (stdout when omitted)")
     parser.add_argument("--format", choices=["text", "md", "json", "html"], default="text")
+    parser.add_argument(
+        "--concise",
+        action="store_true",
+        help="Text summary and failing checks, without profiling details",
+    )
     parser.add_argument("--baseline", help="Compare against a previously saved JSON report")
     parser.add_argument("--init-config", action="store_true", help="Write a default YAML template")
     parser.add_argument(
@@ -38,7 +46,31 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.input and args.csv_path:
         parser.error("Provide only one input path, either positional or --input")
+    if args.concise and (args.format != "text" or args.init_config):
+        parser.error("--concise requires a text report and cannot be used with --init-config")
+    if args.check_config is not None and (
+        args.input
+        or args.csv_path
+        or args.config
+        or args.init_config
+        or args.force
+        or args.baseline
+        or args.dtype
+        or args.output
+        or args.concise
+        or args.format != "text"
+        or args.input_format != "auto"
+        or args.sep != ","
+        or args.encoding != "utf-8"
+    ):
+        parser.error(
+            "--check-config cannot be combined with input, report, or initialization options"
+        )
     try:
+        if args.check_config is not None:
+            load_yaml_config(args.check_config)
+            print(f"Configuration valid: {args.check_config}")
+            return 0
         if args.init_config:
             if args.input or args.csv_path or args.baseline or args.dtype:
                 parser.error("--init-config cannot be combined with dataset input options")
@@ -79,7 +111,7 @@ def main(argv: list[str] | None = None) -> int:
                 parser.error(f"--dtype references unknown columns: {', '.join(sorted(unknown))}")
         report = DataQualityChecker(df).validate(config, baseline=args.baseline)
         if args.output:
-            report.write(args.output, args.format)
+            report.write(args.output, args.format, concise=args.concise)
         else:
             renderers = {
                 "text": report.to_terminal,
@@ -87,7 +119,12 @@ def main(argv: list[str] | None = None) -> int:
                 "json": report.to_json,
                 "html": report.to_html,
             }
-            print(renderers[args.format](), end="")
+            content = (
+                report.to_terminal(concise=args.concise)
+                if args.format == "text"
+                else renderers[args.format]()
+            )
+            print(content, end="")
         return 2 if report.has_errors else (0 if report.passed else 1)
     except Exception as exc:
         print(f"rowlint: {type(exc).__name__}: {exc}", file=sys.stderr)
