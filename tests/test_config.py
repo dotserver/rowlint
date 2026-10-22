@@ -46,6 +46,18 @@ def test_selective_checks_flat_compatibility_and_disable_all():
         {"baseline": {"max_unique_change": -1}},
         {"baseline": {"max_null_increase": 2}},
         {"unique_rows": "false"},
+        {"dataset": None},
+        {"dataset": {"minimum_rows": 1}},
+        {"dataset": {"min_rows": True}},
+        {"dataset": {"min_rows": -1}},
+        {"dataset": {"max_rows": 1.5}},
+        {"dataset": {"max_rows": "10"}},
+        {"dataset": {"max_rows": None}},
+        {"dataset": {"min_rows": 3, "max_rows": 2}},
+        {"schema": None},
+        {"schema": {"strict": True}},
+        {"schema": {"allow_extra_columns": "false"}},
+        {"schema": {"allow_extra_columns": 0}},
     ],
 )
 def test_invalid_configuration_rejected(config):

@@ -8,6 +8,12 @@ checks:
   empty_or_nan_strings: true
   duplicate_rows: true
 
+dataset: {}
+# Example: {min_rows: 1, max_rows: 1000000}
+schema:
+  allow_extra_columns: true
+# Set false to accept only columns declared below, including optional columns.
+
 columns: {}
 # Example:
 # columns:
