@@ -120,6 +120,14 @@ control CSV parsing. Validation does not silently cast or clean your data.
 Parquet input is detected from `.parquet` or `.pq`, or can be selected with
 `--input-format parquet`. Install the `parquet` extra first.
 
+## Runnable examples
+
+See the [examples guide](https://github.com/dotserver/rowlint/tree/main/examples)
+for six walkthroughs covering multiple failures, type preservation, null
+semantics, bounded failure evidence, CLI exit-code gates, and baseline
+comparisons. They use synthetic data and include expected results. Several
+examples intentionally produce failed checks.
+
 ## Configuration
 
 ```yaml

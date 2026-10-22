@@ -39,6 +39,11 @@ python -m ruff format --check .
 python -m pytest --cov=rowlint
 ```
 
+The runnable examples are covered by `tests/test_examples.py`. Run them with
+`python -m pytest tests/test_examples.py`; the tests copy example files into
+temporary directories and use pytest's Python interpreter. All Python examples
+run with the base dependencies. Shell examples additionally require Bash.
+
 To format changed Python files, run `python -m ruff format .` and repeat the
 checks. For changes to packaging or the README, also run the build and metadata
 checks in the [release guide](RELEASING.md#build-and-check-the-distributions).
@@ -64,6 +69,7 @@ and [Arrow 16](https://arrow.apache.org/release/16.0.0.html).
 - `rowlint/report.py`: result objects and report rendering.
 - `rowlint/cli.py`: command-line arguments and exit codes.
 - `tests/`: coverage for configuration, rules, reports, adapters, and the CLI.
+- `examples/`: synthetic datasets, rules, and runnable Python/Bash walkthroughs.
 - `scripts/smoke_install.py`: wheel and source installation checks.
 
 Checks run on the complete dataset in memory. Reports contain aggregates and
