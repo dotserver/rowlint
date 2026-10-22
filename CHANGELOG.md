@@ -1,6 +1,17 @@
 # Changelog
 
-## 0.2.0 — Unreleased
+## Unreleased
+
+### Added
+
+- Six runnable examples with synthetic data covering validation failures,
+  type preservation, null semantics, bounded evidence, exit-code gates, and
+  baseline comparisons.
+- Integration tests for the examples, including success, validation failure,
+  and input-error gate paths, run in temporary copies of the example files.
+- Example sources and documentation included in source distributions.
+
+## 0.2.0 — 2026-10-19
 
 ### Added
 

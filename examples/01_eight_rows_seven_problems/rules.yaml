@@ -1,0 +1,24 @@
+dataset:
+  min_rows: 1
+
+schema:
+  allow_extra_columns: false
+
+columns:
+  order_id: {dtype: integer, nullable: false, unique: true}
+  customer_id: {dtype: string, nullable: false, regex: 'C[0-9]{3}'}
+  order_date: {nullable: false}
+  ship_date: {nullable: false}
+  country: {allowed_values: [GB, FR, DE, US]}
+  quantity: {dtype: integer, min: 1}
+  unit_price: {dtype: number, min: 0}
+  total: {dtype: number}
+
+cross_column_checks:
+  - name: total_matches_line_items
+    left: total
+    op: eq
+    right: [quantity, unit_price]
+    operation: multiply
+    tolerance: 0.01
+  - {name: ships_after_order, left: order_date, op: le, right: ship_date}

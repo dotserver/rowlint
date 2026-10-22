@@ -1,0 +1,3 @@
+baseline:
+  max_null_increase: 0.05
+  max_unique_change: 0.2
